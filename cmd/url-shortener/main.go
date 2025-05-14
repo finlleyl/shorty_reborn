@@ -12,7 +12,7 @@ func main() {
 	cfg := config.MustLoad()
 	fmt.Println(cfg)
 
-	logger, cleanup, err := logger.NewSugared()
+	logger, cleanup, err := logger.NewSugared(logger.Mode(cfg.Env))
 	if err != nil {
 		log.Fatalf("Failed to create logger: %s", err)
 	}
