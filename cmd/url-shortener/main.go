@@ -67,6 +67,7 @@ func main() {
 	})
 
 	g.Go(func() error {
+		logger.Infof("Starting server on %s", cfg.HTTPServer.Address)
 		return srv.ListenAndServe()
 	})
 
