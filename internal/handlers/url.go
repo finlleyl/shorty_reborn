@@ -63,11 +63,28 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Resolve(w http.ResponseWriter, r *http.Request) {
-	// TODO: implement
+	alias := chi.URLParam(r, "alias")
+	if alias == "" {
+		writeJSONError(w, http.StatusBadRequest, "alias is required")
+		return
+	}
+	
+	u, err := h.URLService.Resolve(r.Context(), alias)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrURLNotFound):
+			writeJSONError(w, http.StatusNotFound, "url not found")
+		default:
+			writeJSONError(w, http.StatusInternalServerError, "failed to resolve url")
+		}
+		return
+	}
+
+	w.Header().Set("Cache-Control", "public, max-age=60")
+	http.Redirect(w, r, u.OrigURL, http.StatusFound)
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	// TODO: implement
 }
 
 func writeJSONError(w http.ResponseWriter, status int, msg string) {
