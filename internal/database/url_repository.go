@@ -1,8 +1,10 @@
 package database
 
 import (
-	"context"
+	"context"	
+	"errors"
 	"fmt"
+	"database/sql"
 
 	"github.com/jmoiron/sqlx"
 )	
@@ -13,6 +15,7 @@ type URL struct {
 	URL string `db:"url"`
 }
 
+var ErrNotFound = errors.New("url not found")
 type URLRepository interface {
 	Exists(ctx context.Context, alias string) (bool, error)
 	Save(ctx context.Context, alias, url string) (*URL, error)
@@ -66,18 +69,20 @@ func (r *postgresURLRepository) Save(ctx context.Context, alias, url string) (*U
 }
 
 func (r *postgresURLRepository) Get(ctx context.Context, alias string) (*URL, error) {
-	query := `
-		SELECT id, alias, url
-		FROM url
-		WHERE alias = $1;
-	`
-
-	var urlEntity URL
-	if err := r.db.GetContext(ctx, &urlEntity, query, alias); err != nil {
-		return nil, fmt.Errorf("failed to get url: %w", err)
-	}
-
-	return &urlEntity, nil
+    query := `
+        SELECT id, alias, url
+        FROM url
+        WHERE alias = $1;
+    `
+    var urlEntity URL
+    err := r.db.GetContext(ctx, &urlEntity, query, alias)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            return nil, ErrNotFound
+        }
+        return nil, fmt.Errorf("postgresURLRepository.Get: %w", err)
+    }
+    return &urlEntity, nil
 }
 
 func (r *postgresURLRepository) Delete(ctx context.Context, alias string) error {

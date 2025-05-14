@@ -16,7 +16,7 @@ var (
 	ErrInvalidURL   = errors.New("invalid URL")
 	ErrInvalidAlias = errors.New("invalid alias")
 	ErrAliasExists  = errors.New("alias already exists")
-	ErrURLNotFound  = errors.New("url not found")
+	ErrURLNotFound  = database.ErrNotFound
 )
 
 type URL struct {
@@ -72,19 +72,18 @@ func (s *urlService) Create(ctx context.Context, RawURL, alias string) (*URL, er
 }
 
 func (s *urlService) Resolve(ctx context.Context, alias string) (*URL, error) {
-	u, err := s.repo.Get(ctx, alias)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get url: %s", err)
-	}
-	
-	if u == nil {
-		return nil, ErrURLNotFound
-	}
+    u, err := s.repo.Get(ctx, alias)
+    if err != nil {
+        if errors.Is(err, database.ErrNotFound) {
+            return nil, fmt.Errorf("resolve: %w", ErrURLNotFound)
+        }
+        return nil, fmt.Errorf("resolve: %w", err)
+    }
 
-	return &URL{
-		Alias:   u.Alias,
-		OrigURL: u.URL,
-	}, nil
+    return &URL{
+        Alias:   u.Alias,
+        OrigURL: u.URL,
+    }, nil
 }
 
 func (s *urlService) Delete(ctx context.Context, alias string) error {
