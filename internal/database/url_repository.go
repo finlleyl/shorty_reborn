@@ -91,9 +91,18 @@ func (r *postgresURLRepository) Delete(ctx context.Context, alias string) error 
 		WHERE alias = $1;
 	`
 
-	_, err := r.db.ExecContext(ctx, query, alias)
+	result, err := r.db.ExecContext(ctx, query, alias)
 	if err != nil {
 		return fmt.Errorf("failed to delete url: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rows == 0 {
+		return ErrNotFound
 	}
 
 	return nil

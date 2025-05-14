@@ -85,6 +85,25 @@ func (h *Handler) Resolve(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	alias := chi.URLParam(r, "alias")
+
+	if alias == "" {
+		writeJSONError(w, http.StatusBadRequest, "alias is required")
+		return
+	}
+
+	if err := h.URLService.Delete(r.Context(), alias); err != nil {
+		switch {
+		case errors.Is(err, service.ErrURLNotFound):
+			writeJSONError(w, http.StatusNotFound, "url not found")
+		default:
+			writeJSONError(w, http.StatusInternalServerError, "failed to delete url")
+		}
+	
+		return 
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func writeJSONError(w http.ResponseWriter, status int, msg string) {

@@ -89,7 +89,12 @@ func (s *urlService) Resolve(ctx context.Context, alias string) (*URL, error) {
 func (s *urlService) Delete(ctx context.Context, alias string) error {
 	err := s.repo.Delete(ctx, alias)
 	if err != nil {
-		return fmt.Errorf("failed to delete url: %s", err)
+		switch {
+			case errors.Is(err, database.ErrNotFound):
+				return fmt.Errorf("delete: %w", ErrURLNotFound)
+			default:
+				return fmt.Errorf("delete: %w", err)
+		}
 	}
 	
 	return nil
