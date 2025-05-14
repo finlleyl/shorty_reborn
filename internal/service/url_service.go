@@ -71,8 +71,15 @@ func (s *urlService) Create(ctx context.Context, RawURL, alias string) (*URL, er
 }
 
 func (s *urlService) Resolve(ctx context.Context, alias string) (*URL, error) {
-	// TODO: IMPLEMENT
-	return nil, nil
+	u, err := s.repo.Get(ctx, alias)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get url: %s", err)
+	}
+
+	return &URL{
+		Alias:   u.Alias,
+		OrigURL: u.URL,
+	}, nil
 }
 
 func (s *urlService) Delete(ctx context.Context, alias string) error {
