@@ -1,8 +1,13 @@
-package main 
+package main
 
 import (
+	"context"
 	"log"
-	"net/http"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/finlleyl/shorty_reborn/internal/config"
 	"github.com/finlleyl/shorty_reborn/internal/database"
@@ -13,6 +18,9 @@ import (
 )
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	cfg := config.MustLoad()
 
 	logger, cleanup, err := logger.NewSugared(logger.Mode(cfg.Env))
@@ -30,22 +38,39 @@ func main() {
 	defer db.Close()
 
 	urlRepo := database.NewURLRepository(db)
-	
+
 	urlService := service.NewURLService(urlRepo)
 	handler := handlers.NewHandler(urlService)
 
 	r := httpserver.NewRouter(handler, logger)
 
-	srv := &http.Server{
-		Addr: cfg.HTTPServer.Address,
-		Handler: r,
-		ReadTimeout: cfg.HTTPServer.Timeout,
-		WriteTimeout: cfg.HTTPServer.Timeout,
-		IdleTimeout: cfg.HTTPServer.IdleTimeout,
-	}
+	srv := httpserver.NewServer(&cfg.HTTPServer, r)
 
-	logger.Infof("Starting server on %s", cfg.HTTPServer.Address)
-	if err := srv.ListenAndServe(); err != nil {
-		logger.Fatal("Failed to start server: %s", err)
+
+	
+	go func() {
+		ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+		defer cancel()
+
+		<-ctx.Done()
+		logger.Info("Shutting down server...")
+	}()
+
+	g, gCtx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		<-gCtx.Done()
+		ctxTimeout, cancelTimeout := context.WithTimeout(context.Background(), 15 * time.Second)
+		defer cancelTimeout()
+
+		return srv.Shutdown(ctxTimeout)
+	})
+
+	g.Go(func() error {
+		return srv.ListenAndServe()
+	})
+
+	if err := g.Wait(); err != nil {
+		logger.Fatal("Server stopped: %s", err)
 	}
 }
