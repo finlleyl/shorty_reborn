@@ -50,7 +50,7 @@ func postgresDB(cfg *config.Database) (*sqlx.DB, error) {
 func runMigrations(db *sqlx.DB) error {
 	schema := []string{
 		`CREATE TABLE IF NOT EXISTS url (
-			id INTEGER PRIMARY KEY,
+			id SERIAL PRIMARY KEY,
 			alias TEXT NOT NULL UNIQUE,
 			url TEXT NOT NULL);
 		CREATE INDEX IF NOT EXISTS idx_alias ON url(alias);`,

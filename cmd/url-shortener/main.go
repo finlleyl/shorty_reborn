@@ -1,7 +1,7 @@
 package main 
 
 import (
-	"fmt"
+	"context"
 	"log"
 
 	"github.com/finlleyl/shorty_reborn/internal/config"
@@ -11,7 +11,6 @@ import (
 
 func main() {
 	cfg := config.MustLoad()
-	fmt.Println(cfg)
 
 	logger, cleanup, err := logger.NewSugared(logger.Mode(cfg.Env))
 	if err != nil {
@@ -26,6 +25,15 @@ func main() {
 	}
 	logger.Info("DB created")
 	defer db.Close()
+
+	ctx := context.Background()
+	urlRepo := database.NewURLRepository(db)
+	
+	url, err := urlRepo.Save(ctx, "test", "https://google.com")
+	if err != nil {
+		logger.Fatal("Failed to save url: %s", err)
+	}
+	logger.Info("URL saved: %s", url)
 
 	logger.Info("Starting URL shortener")
 }
