@@ -64,8 +64,7 @@ func main() {
 	})
 
 	if err := g.Wait(); err != nil {
-		logger.Fatal("Server stopped: %s", err)
+		logger.Fatalf("Server stopped: %s", err)
 	}
 
-	logger.Info("Server stopped gracefully")
 }
