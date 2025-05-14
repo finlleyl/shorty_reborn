@@ -18,9 +18,6 @@ import (
 )
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	cfg := config.MustLoad()
 
 	logger, cleanup, err := logger.NewSugared(logger.Mode(cfg.Env))
@@ -47,31 +44,28 @@ func main() {
 	srv := httpserver.NewServer(&cfg.HTTPServer, r)
 
 
-	
-	go func() {
-		ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-		defer cancel()
-
-		<-ctx.Done()
-		logger.Info("Shutting down server...")
-	}()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	g, gCtx := errgroup.WithContext(ctx)
-
-	g.Go(func() error {
-		<-gCtx.Done()
-		ctxTimeout, cancelTimeout := context.WithTimeout(context.Background(), 15 * time.Second)
-		defer cancelTimeout()
-
-		return srv.Shutdown(ctxTimeout)
-	})
 
 	g.Go(func() error {
 		logger.Infof("Starting server on %s", cfg.HTTPServer.Address)
 		return srv.ListenAndServe()
 	})
 
+	g.Go(func() error {
+		<-gCtx.Done()
+		logger.Info("Shutting down server...")
+		ctxTimeout, cancelTimeout := context.WithTimeout(context.Background(), 15 * time.Second)
+		defer cancelTimeout()
+
+		return srv.Shutdown(ctxTimeout)
+	})
+
 	if err := g.Wait(); err != nil {
 		logger.Fatal("Server stopped: %s", err)
 	}
+
+	logger.Info("Server stopped gracefully")
 }
