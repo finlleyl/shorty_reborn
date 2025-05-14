@@ -14,6 +14,7 @@ type URL struct {
 }
 
 type URLRepository interface {
+	Exists(ctx context.Context, alias string) (bool, error)
 	Save(ctx context.Context, alias, url string) (*URL, error)
 	Get(ctx context.Context, alias string) (*URL, error)
 	Delete(ctx context.Context, alias string) error
@@ -25,6 +26,23 @@ type postgresURLRepository struct {
 
 func NewURLRepository(db *sqlx.DB) URLRepository {
 	return &postgresURLRepository{db: db}
+}
+
+func (r *postgresURLRepository) Exists(ctx context.Context, alias string) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM url
+			WHERE alias = $1
+		)
+	`
+
+	var exists bool
+	if err := r.db.GetContext(ctx, &exists, query, alias); err != nil {
+		return false, fmt.Errorf("failed to check if alias exists: %w", err)
+	}
+
+	return exists, nil
 }
 
 func (r *postgresURLRepository) Save(ctx context.Context, alias, url string) (*URL, error) {
